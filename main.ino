@@ -61,7 +61,7 @@ TFT_eSPI tft = TFT_eSPI();
 
 // WiFiManager wifiManager;
 
-long devices_update_interval_ms = 6000;
+long devices_update_interval_ms = 6000;  // run more often for memory leak search
 //long devices_update_interval_ms = 60000;
 long entries_update_interval_ms = 10000;
 
@@ -159,7 +159,10 @@ typedef struct device {
   long long mills;
 } device;
 
-std::map<std::string, device> devices_map;// = std::map<std::string, device>;
+//std::map<std::string, device> devices_map;// = std::map<std::string, device>;
+#define MAX_DEVICES 5
+device devices_list[MAX_DEVICES];
+int found_devices = 0;
 
 bool update_nightscout_devices() {
   /* Sample response:
@@ -209,20 +212,24 @@ bool update_nightscout_devices() {
     Serial.println(error.f_str());
     return false;
   }
-  std::map<std::string, device> local_devices_map;// = std::map<std::string, device>;
+  //std::map<std::string, device> local_devices_map;// = std::map<std::string, device>;
   JsonArray devices_json = doc.as<JsonArray>();
+  char device_name[100];
+  int battery;
+  long long mills;
   for (JsonObject device_json : devices_json) {
-    device d;
-    strcpy(d.device, device_json["device"]);
-    d.battery = device_json["uploader"]["battery"];
-    strcpy(d.type, device_json["uploader"]["type"]);
+    // device d;
+       //d.device, device_json["device"]);
+    strncpy(device_name, device_json["device"], sizeof(device_name));
+    battery = device_json["uploader"]["battery"];
+    //strcpy(d.type, device_json["uploader"]["type"]);
     
     Serial.print("Device: ");
-    Serial.print(d.device);
+    Serial.print(device_name);
     Serial.print(" Battery: ");
-    Serial.print(d.battery);
-    Serial.print(" Type: ");
-    Serial.println(d.type);
+    Serial.print(battery);
+    // Serial.print(" Type: ");
+    // Serial.println(d.type);
     // Serial.print(" Mills s: ");
     // Serial.print(long_ms);
     // Serial.print(" Mills l: ");
@@ -230,39 +237,60 @@ bool update_nightscout_devices() {
 
     if (device_json.containsKey("mills") == false) {
       Serial.println("WARNING mills is not present!");
-      d.mills = 0;
+      mills = 0;
     } else {
       const char* long_ms = device_json["mills"];
       if (long_ms == NULL) {
         Serial.println("WARNING mills is NULL!");
-        d.mills = 0;
+        mills = 0;
       } else {
         Serial.print(" Mills str: ");
         Serial.println(long_ms);
-        d.mills = atoll(long_ms);
+        mills = atoll(long_ms);
         Serial.print(" Mills long: ");
-        Serial.println(d.mills);
+        Serial.println(mills);
       }
     }    
-    std::string device_name = std::string(d.device);
 
-    if (local_devices_map.find(device_name) != local_devices_map.end()) {
-      device existing_device = local_devices_map[device_name];
-      if (existing_device.mills < d.mills) {
-        Serial.println("Updating device");
-        local_devices_map[device_name] = d;
+    // std::string device_name = std::string(d.device);
+
+    // if (local_devices_map.find(device_name) != local_devices_map.end()) {
+    //   device existing_device = local_devices_map[device_name];
+    //   if (existing_device.mills < d.mills) {
+    //     Serial.println("Updating device");
+    //     local_devices_map[device_name] = d;
+    //   }
+    // } else {
+    //   Serial.println("Adding device");
+    //   local_devices_map[device_name] = d;
+    // }
+    bool found = false;
+    for (int i = 0; i < MAX_DEVICES; i++) {
+      if (!strncmp(devices_list[i].device, device_name, sizeof(devices_list[i].device))) {
+        if (devices_list[i].mills < mills) {
+          devices_list[i].battery = battery;
+          devices_list[i].mills = mills;
+        }
+        found_devices = max(found_devices, i + 1);
+        found = true;
+        break;
       }
-    } else {
-      Serial.println("Adding device");
-      local_devices_map[device_name] = d;
+    }
+    if (!found) {
+      if (found_devices < MAX_DEVICES) {
+        strncpy(devices_list[found_devices].device, device_name, sizeof(devices_list[found_devices].device));
+        devices_list[found_devices].battery = battery;
+        devices_list[found_devices].mills = mills;
+        found_devices++;
+      }
     }
   }
 
-  for (std::map<std::string, device>::iterator it = local_devices_map.begin(); it != local_devices_map.end(); ++it) {
-    device d = it->second;
-    std::string device_name = std::string(d.device);
-    devices_map[device_name] = d; 
-  }
+  // for (std::map<std::string, device>::iterator it = local_devices_map.begin(); it != local_devices_map.end(); ++it) {
+  //   device d = it->second;
+  //   std::string device_name = std::string(d.device);
+  //   devices_map[device_name] = d; 
+  // }
     
 
 
@@ -353,7 +381,7 @@ void setup() {
   // NOTE: this needs to be done after tft.init()
   ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_12_BIT);
   ledcAttachPin(LCD_BACK_LIGHT_PIN, LEDC_CHANNEL_0);
-  ledcWrite(LEDC_CHANNEL_0, 255);
+  ledcAnalogWrite(LEDC_CHANNEL_0, 255);
 
   // Clear the screen before writing to it
   tft.fillScreen(TFT_BLACK);
@@ -547,8 +575,8 @@ void draw_nightscout_data() {
   tft.drawString(buf, 5, 120, 4);
   tft.setTextSize(1);
   int y = 180;
-  for (std::map<std::string, device>::iterator it = devices_map.begin(); it != devices_map.end(); ++it) {
-    device d = it->second;
+  for (int i = 0 ; i < found_devices; i++){
+    device d = devices_list[i];
     if (d.mills) {
       int age_min = (cur_ms() - d.mills) / 60000;
       snprintf(buf, sizeof(buf), "%s %d%% %dm ago", d.device, d.battery, age_min);
