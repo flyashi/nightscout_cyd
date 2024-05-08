@@ -61,9 +61,9 @@ TFT_eSPI tft = TFT_eSPI();
 
 // WiFiManager wifiManager;
 
-long devices_update_interval_ms = 6000;  // run more often for memory leak search
+long devices_update_interval_ms = 600;  // run more often for memory leak search
 //long devices_update_interval_ms = 60000;
-long entries_update_interval_ms = 10000;
+long entries_update_interval_ms = 1000;
 
 
 int sgv;
@@ -141,12 +141,12 @@ bool update_nightscout_entries() {
   } else {
     const char* date = http.header("date").c_str();
     strptime(date, "%a,%d %b %Y %H:%M:%S GMT", &tm);
-    Serial.print("Date received was: ");
-    Serial.println(date);
+    // Serial.print("Date received was: ");
+    // Serial.println(date);
     set_system_time_from_tm();
-    Serial.print("System time is now: ");
+    // Serial.print("System time is now: ");
     time_t t = mktime(&tm);
-    Serial.println(ctime(&t));
+    // Serial.println(ctime(&t));
   }
 
   return true;
@@ -512,9 +512,23 @@ void draw_mem() {
   tft.drawString(buf, 320, 220, 2);
   snprintf(buf, sizeof(buf), "RAM4 = %d", xPortGetFreeHeapSize());
   tft.drawString(buf, 320, 240, 2);
+  Serial.print("RAM = ");
+  Serial.println(esp_get_free_heap_size());
+  Serial.print("RAM2 = ");
+  Serial.println(uxTaskGetStackHighWaterMark(NULL));
+  Serial.print("RAM3 = ");
+  Serial.println(ESP.getFreeHeap());
+  Serial.print("RAM4 = ");
+  Serial.println(xPortGetFreeHeapSize());
+
 }
 
 void draw_nightscout_data() {
+
+
+  always_draw_time();
+  draw_mem();
+
   long sgv_age_min = (cur_ms() - sgv_ts_ms) / 60000;
   if (sgv_ts_ms == prev_sgv_ts_ms && sgv_age_min == prev_sgv_age_min) {
     return;
@@ -587,8 +601,6 @@ void draw_nightscout_data() {
     tft.drawString(buf, 5, y, 2);
     y += 20;
   }
-  always_draw_time();
-  draw_mem();
 }
 
 
@@ -658,12 +670,20 @@ void loop() {
   bool have_ns_update = false;
   if (last_check_devices_ms == 0 || millis() - last_check_devices_ms > devices_update_interval_ms)
   {
-    have_ns_update |= update_nightscout_devices();
+    /*
+    for (int i = 0; i < 100; i++) {
+      have_ns_update |= update_nightscout_devices();
+      // delay(100);
+    }
+    // have_ns_update |= update_nightscout_devices();
+    */
     last_check_devices_ms = millis();
   }
   if (last_check_entries_ms == 0 || millis() - last_check_entries_ms > entries_update_interval_ms)
   {
-    have_ns_update |= update_nightscout_entries();
+    Serial.println("Loading 100 nightscout entries....");
+    for (int i = 0 ; i < 100; i++)
+      have_ns_update |= update_nightscout_entries();
     last_check_entries_ms = millis();
   }
   if (have_ns_update) {
