@@ -61,8 +61,8 @@ TFT_eSPI tft = TFT_eSPI();
 
 // WiFiManager wifiManager;
 
-long devices_update_interval_ms = 6000;
-//long devices_update_interval_ms = 60000;
+// long devices_update_interval_ms = 6000;
+long devices_update_interval_ms = 60000;
 long entries_update_interval_ms = 10000;
 
 
