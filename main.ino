@@ -248,7 +248,7 @@ bool update_nightscout_devices() {
 
     if (local_devices_map.find(device_name) != local_devices_map.end()) {
       device existing_device = local_devices_map[device_name];
-      if (existing_device.mills < d.mills) {
+      if (existing_device.mills <= d.mills) {
         Serial.println("Updating device");
         local_devices_map[device_name] = d;
       }
@@ -353,7 +353,7 @@ void setup() {
   // NOTE: this needs to be done after tft.init()
   ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_12_BIT);
   ledcAttachPin(LCD_BACK_LIGHT_PIN, LEDC_CHANNEL_0);
-  ledcWrite(LEDC_CHANNEL_0, 255);
+  ledcAnalogWrite(LEDC_CHANNEL_0, 100);
 
   // Clear the screen before writing to it
   tft.fillScreen(TFT_BLACK);
@@ -567,7 +567,7 @@ void draw_nightscout_data() {
 unsigned long last_check_devices_ms = 0;
 unsigned long last_check_entries_ms = 0;
 
-int brightness = 255;
+int brightness = 100;
 long last_touch_ms = 0;
 
 void handleTouch(TS_Point p) {
