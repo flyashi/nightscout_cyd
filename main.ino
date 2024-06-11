@@ -111,9 +111,8 @@ bool update_nightscout_entries() {
     Serial.println(retcode);
     return false;
   }
-  JsonDocument doc;
-  String response = http.getString();
-  DeserializationError error = deserializeJson(doc, response);
+  StaticJsonDocument<10000> doc;
+  DeserializationError error = deserializeJson(doc, http.getStream());
   if (error) {
     Serial.print("deserializeJson() failed: ");
     Serial.println(error.f_str());
@@ -205,7 +204,7 @@ bool update_nightscout_devices() {
     Serial.println(retcode);
     return false;
   }
-  JsonDocument doc;
+  StaticJsonDocument<10000> doc;
   DeserializationError error = deserializeJson(doc, http.getStream());
   if (error) {
     Serial.print("deserializeJson() failed: ");
@@ -667,5 +666,11 @@ void loop() {
   if (ts.tirqTouched() && ts.touched()) {
     TS_Point p = ts.getPoint();
     handleTouch(p);
+  }
+
+  uint32_t cur_ram1 = esp_get_free_heap_size();
+  if (cur_ram1 < 100000) {
+    Serial.println("Low RAM, restarting");
+    ESP.restart();
   }
 }
