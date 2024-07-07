@@ -37,6 +37,8 @@
 #include <map>
 
 #include "arduino_secrets.h"
+#include "config.h"
+#include "types.h"
 
 #include <XPT2046_Touchscreen.h>
 
@@ -73,6 +75,21 @@ long long sgv_ts_ms;
 struct tm tm = {0};
 
 
+long status_override_updated_at = 0;
+
+device_t devices[MAX_DEVICES];
+device_t local_devices[MAX_DEVICES];
+
+
+#define MAX_READINGS_STORED (60 * 24 / 5)  // 24 hours, 5 min intervals
+
+reading readings[MAX_READINGS_STORED];
+
+display_data_t display_data_a;
+display_data_t display_data_b;
+
+display_data_t *display_data_cur = &display_data_a;
+display_data_t *display_data_prev = &display_data_b;
 
 #define LCD_BACK_LIGHT_PIN 21
 
@@ -151,17 +168,6 @@ bool update_nightscout_entries() {
   return true;
 }
 
-typedef struct device {
-  char device[50];
-  int battery;
-  // char type[50];
-  long long mills;
-  bool set;
-} device;
-
-#define MAX_DEVICES 10
-device devices[MAX_DEVICES];
-device local_devices[MAX_DEVICES];
 
 bool update_nightscout_devices() {
   /* Sample response:
@@ -319,7 +325,7 @@ bool prev_wifi_connected = false;
 
 void draw_header() {
   bool wifi_connected = WiFi.status() == WL_CONNECTED;
-  if (wifi_connected == prev_wifi_connected && ota_last_progress_ms == 0) {
+  if (wifi_connected == prev_wifi_connected && status_override_updated_at == 0) {
     return;
   }
   prev_wifi_connected = wifi_connected;
