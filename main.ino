@@ -469,8 +469,11 @@ void always_draw_time() {
   setenv("TZ", "America/New_York", 1);
   tzset(); // Initialize timezone data
   time_t aTime = time(NULL); // get the time - this is GMT based.
+  // time zone offset for display
   // hardcode 240min offset
   aTime -= 240 * 60;
+  // Winter: remove additional 60min
+  aTime -= 60 * 60;
   struct tm retTime;
   localtime_r(&aTime, &retTime); // Convert time into current timezone.
 
