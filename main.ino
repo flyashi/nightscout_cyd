@@ -74,7 +74,7 @@ struct tm tm = {0};
 
 
 
-#define LCD_BACK_LIGHT_PIN 21
+#define LCD_BACK_LIGHT_PIN TFT_BL
 
 // use first channel of 16 channels (started from zero)
 #define LEDC_CHANNEL_0     0
@@ -355,6 +355,11 @@ void setup() {
   Serial.begin(115200);
   // Start the tft display and set it to black
   tft.init();
+  
+  // only if using DMA
+#ifdef ESP32_DMA
+  tft.initDMA();
+#endif
   //tft.invertDisplay(1); //If you have a CYD2USB - https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/blob/main/cyd.md#my-cyd-has-two-usb-ports
   tft.setRotation(1); //This is the display in landscape
   
@@ -473,7 +478,7 @@ void always_draw_time() {
   // hardcode 240min offset
   aTime -= 240 * 60;
   // Winter: remove additional 60min
-  aTime -= 60 * 60;
+  // aTime -= 60 * 60;
   struct tm retTime;
   localtime_r(&aTime, &retTime); // Convert time into current timezone.
 
@@ -593,6 +598,8 @@ int brightness = 100;
 unsigned long last_touch_ms = 0;
 
 void handleTouch(TS_Point p) {
+  Serial.printf("touch at p.x=%d p.y=%d p.z=%d\n");
+  return;
   if (p.z < 2000) {
     return;
   }
@@ -665,11 +672,11 @@ void loop() {
   }
 
 
-
-  if (ts.tirqTouched() && ts.touched()) {
-    TS_Point p = ts.getPoint();
-    handleTouch(p);
-  }
+  // only on CYD
+  // if (ts.tirqTouched() && ts.touched()) {
+  //   TS_Point p = ts.getPoint();
+  //   handleTouch(p);
+  // }
 
   uint32_t cur_ram1 = esp_get_free_heap_size();
   if (cur_ram1 < 100000) {
